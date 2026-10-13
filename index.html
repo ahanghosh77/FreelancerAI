@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreelancerAI — Local-First Invoice & Receipt Sorter</title>
+    <meta name="description" content="FreelancerAI sorts your invoices and receipts using open-source AI that runs entirely in your browser. Your client data never leaves your laptop.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <!-- Header -->
+    <header id="app-header">
+        <div class="header-inner">
+            <div class="logo-group">
+                <div class="logo-icon">
+                    <i data-lucide="scan-line"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>FreelancerAI</h1>
+                    <span class="logo-badge">100% Local · Open Source</span>
+                </div>
+            </div>
+            <nav class="header-nav">
+                <button class="nav-btn active" data-view="upload" id="nav-upload">
+                    <i data-lucide="upload-cloud"></i>
+                    <span>Upload</span>
+                </button>
+                <button class="nav-btn" data-view="dashboard" id="nav-dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-btn" data-view="export" id="nav-export">
+                    <i data-lucide="download"></i>
+                    <span>Export</span>
+                </button>
+            </nav>
+            <div class="header-status">
+                <div class="status-dot" id="ai-status-dot"></div>
+                <span class="status-text" id="ai-status-text">AI Ready</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="app-main">
+        
+        <!-- Upload View -->
+        <section class="view active" id="view-upload">
+            <div class="section-header">
+                <h2>Scan & Sort Receipts</h2>
+                <p class="section-desc">Drop invoices or receipts below. AI extracts amounts, dates, vendors, and categories — all on your device.</p>
+            </div>
+
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-zone-inner">
+                    <div class="upload-icon-ring">
+                        <i data-lucide="image-plus"></i>
+                    </div>
+                    <h3>Drop receipts & invoices here</h3>
+                    <p>or click to browse — supports PNG, JPG, PDF screenshots</p>
+                    <div class="upload-features">
+                        <span class="upload-chip"><i data-lucide="shield-check"></i> Data stays on your device</span>
+                        <span class="upload-chip"><i data-lucide="zap"></i> Instant AI extraction</span>
+                        <span class="upload-chip"><i data-lucide="wifi-off"></i> Works offline</span>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept="image/*" multiple hidden>
+            </div>
+
+            <!-- Processing Queue -->
+            <div class="processing-section" id="processing-section" style="display:none;">
+                <h3><i data-lucide="loader-2" class="spin"></i> Processing Queue</h3>
+                <div class="processing-list" id="processing-list"></div>
+            </div>
+
+            <!-- Recent Extractions -->
+            <div class="recent-section" id="recent-section" style="display:none;">
+                <div class="recent-header">
+                    <h3><i data-lucide="sparkles"></i> Extracted Results</h3>
+                    <button class="btn-ghost" id="clear-all-btn"><i data-lucide="trash-2"></i> Clear All</button>
+                </div>
+                <div class="results-grid" id="results-grid"></div>
+            </div>
+        </section>
+
+        <!-- Dashboard View -->
+        <section class="view" id="view-dashboard">
+            <div class="section-header">
+                <h2>Expense Dashboard</h2>
+                <p class="section-desc">Your spending at a glance — all calculated locally, never sent to any server.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card" id="stat-total">
+                    <div class="stat-icon"><i data-lucide="wallet"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Total Expenses</span>
+                        <span class="stat-value" id="stat-total-value">$0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card" id="stat-count">
+                    <div class="stat-icon"><i data-lucide="receipt"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Receipts Scanned</span>
+                        <span class="stat-value" id="stat-count-value">0</span>
+                    </div>
+                </div>
+                <div class="stat-card" id="stat-avg">
+                    <div class="stat-icon"><i data-lucide="trending-up"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Average Amount</span>
+                        <span class="stat-value" id="stat-avg-value">$0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card" id="stat-categories">
+                    <div class="stat-icon"><i data-lucide="tags"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Categories</span>
+                        <span class="stat-value" id="stat-categories-value">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Breakdown -->
+            <div class="dashboard-grid">
+                <div class="dash-card">
+                    <h3><i data-lucide="pie-chart"></i> Spending by Category</h3>
+                    <div class="category-bars" id="category-bars">
+                        <div class="empty-state">
+                            <i data-lucide="bar-chart-3"></i>
+                            <p>Scan receipts to see category breakdown</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="dash-card">
+                    <h3><i data-lucide="calendar"></i> Monthly Timeline</h3>
+                    <div class="timeline-chart" id="timeline-chart">
+                        <div class="empty-state">
+                            <i data-lucide="calendar-days"></i>
+                            <p>Scan receipts to see monthly trends</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Receipts Table -->
+            <div class="dash-card full-width">
+                <div class="table-header">
+                    <h3><i data-lucide="list"></i> All Receipts</h3>
+                    <div class="table-controls">
+                        <select id="filter-category" class="filter-select">
+                            <option value="all">All Categories</option>
+                        </select>
+                        <select id="sort-by" class="filter-select">
+                            <option value="date-desc">Newest First</option>
+                            <option value="date-asc">Oldest First</option>
+                            <option value="amount-desc">Highest Amount</option>
+                            <option value="amount-asc">Lowest Amount</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="receipts-table-wrapper">
+                    <table class="receipts-table" id="receipts-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Vendor</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receipts-tbody">
+                            <tr class="empty-row">
+                                <td colspan="5">
+                                    <div class="empty-state small">
+                                        <i data-lucide="inbox"></i>
+                                        <p>No receipts yet — scan some to get started</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Export View -->
+        <section class="view" id="view-export">
+            <div class="section-header">
+                <h2>Export & Reports</h2>
+                <p class="section-desc">Download your organized expense data for tax filing, bookkeeping, or client billing.</p>
+            </div>
+
+            <div class="export-grid">
+                <div class="export-card" id="export-csv">
+                    <div class="export-icon"><i data-lucide="file-spreadsheet"></i></div>
+                    <h3>CSV Spreadsheet</h3>
+                    <p>Import into Excel, Google Sheets, or QuickBooks</p>
+                    <button class="btn-primary" onclick="exportCSV()">
+                        <i data-lucide="download"></i> Download CSV
+                    </button>
+                </div>
+                <div class="export-card" id="export-json">
+                    <div class="export-icon"><i data-lucide="file-json"></i></div>
+                    <h3>JSON Data</h3>
+                    <p>For developers and custom integrations</p>
+                    <button class="btn-primary" onclick="exportJSON()">
+                        <i data-lucide="download"></i> Download JSON
+                    </button>
+                </div>
+                <div class="export-card" id="export-summary">
+                    <div class="export-icon"><i data-lucide="file-text"></i></div>
+                    <h3>Tax Summary</h3>
+                    <p>Category totals formatted for tax preparation</p>
+                    <button class="btn-primary" onclick="exportTaxSummary()">
+                        <i data-lucide="download"></i> Download Summary
+                    </button>
+                </div>
+            </div>
+
+            <div class="privacy-banner">
+                <div class="privacy-icon"><i data-lucide="lock"></i></div>
+                <div class="privacy-content">
+                    <h4>Your Data, Your Device</h4>
+                    <p>All processing happens in your browser using open-source AI models. No data is ever uploaded, transmitted, or stored on any external server. Your receipts stay on your machine — always.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="edit-modal" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i data-lucide="pencil"></i> Edit Receipt</h3>
+                <button class="modal-close" onclick="closeEditModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="edit-vendor">Vendor</label>
+                    <input type="text" id="edit-vendor" class="form-input" placeholder="e.g., Starbucks">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-date">Date</label>
+                        <input type="date" id="edit-date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-amount">Amount ($)</label>
+                        <input type="number" step="0.01" id="edit-amount" class="form-input" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="edit-category">Category</label>
+                    <select id="edit-category" class="form-input">
+                        <option value="Food & Dining">Food & Dining</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Office Supplies">Office Supplies</option>
+                        <option value="Software & Subscriptions">Software & Subscriptions</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Professional Services">Professional Services</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Equipment">Equipment</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-notes">Notes</label>
+                    <textarea id="edit-notes" class="form-input" rows="2" placeholder="Optional notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost" onclick="closeEditModal()">Cancel</button>
+                <button class="btn-primary" id="save-edit-btn" onclick="saveEdit()">
+                    <i data-lucide="check"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
